@@ -26,6 +26,8 @@ wheels/
 # Virtual environments
 vision_env/
 venv/
+venv_api/
+venv_api_new/
 env/
 ENV/
 

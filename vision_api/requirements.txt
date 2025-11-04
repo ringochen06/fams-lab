@@ -1,0 +1,8 @@
+# Requirements for Vision LLM API (cloud-based) - Gemini
+opencv-python>=4.8.0
+google-genai>=1.0.0
+python-dotenv>=1.0.0
+
+# Note: No heavy dependencies like transformers, torch, etc.
+# This uses Gemini Vision API, so much lighter than local models.
+
