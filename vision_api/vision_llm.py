@@ -124,18 +124,6 @@ def query_vision_llm(image_path):
 
 if __name__ == "__main__":
     IMAGE_FILE = "board.png"
-
-    print("=" * 60)
-    print("Vision API - Using Gemini Vision API")
-    print("=" * 60)
-    print("\nFeatures:")
-    print("✅ Fast response, no local model required")
-    print("✅ No large memory or storage space needed")
-    print("✅ Can understand mathematical equations and formulas")
-    print("✅ Can describe diagrams, charts, and geometric shapes")
-    print("=" * 60)
-    print("\nNote: GEMINI_API_KEY environment variable is required\n")
-
     result = capture_image(IMAGE_FILE)
     if result:
         image_to_use = result if isinstance(result, str) else IMAGE_FILE
