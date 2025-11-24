@@ -2,7 +2,8 @@
 opencv-python>=4.8.0
 mediapipe>=0.10.0
 numpy>=1.24.0
-
-# Optional: For integration with vision_api
 python-dotenv>=1.0.0
+
+# Optional: For integrated_tutor.py (board analysis)
+google-genai>=1.0.0
 

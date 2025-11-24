@@ -1,7 +1,10 @@
-# Requirements for Vision LLM API (cloud-based) - Gemini
+# Combined Requirements for FAMS Project
+# Combines dependencies from vision_api/ and student_behavior_detection/
+
 opencv-python>=4.8.0
-google-genai>=1.0.0
 python-dotenv>=1.0.0
+google-genai>=1.0.0
+mediapipe>=0.10.0
+numpy>=1.24.0
 
-
-
+# Note: mediapipe requires Python 3.8-3.12 (not compatible with Python 3.13+)

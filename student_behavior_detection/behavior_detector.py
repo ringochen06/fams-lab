@@ -1,4 +1,5 @@
 """
+
 Student Behavior Detection for AI Tutor
 Detects facial expressions and body language to personalize teaching approach.
 """
@@ -73,8 +74,13 @@ class BehaviorDetector:
         self.pose_angles = deque(maxlen=window_size)
 
         # Thresholds
-        self.NOD_THRESHOLD = 0.02  # Head movement threshold for nodding
-        self.NOD_FREQUENCY_THRESHOLD = 0.3  # Nods per second
+        self.NOD_THRESHOLD = 0.08  # Head movement threshold for nodding (increased to reduce false positives)
+        self.NOD_FREQUENCY_THRESHOLD = (
+            2.0  # Nods per second (increased to 2.0 - requires very frequent nodding)
+        )
+        self.MIN_NOD_AMPLITUDE = (
+            8.0  # Minimum vertical movement in pixels for a valid nod
+        )
         self.STARE_DURATION = 5.0  # Seconds of staring without movement
         self.EYE_CLOSED_RATIO = 0.3  # Eye aspect ratio for closed eyes
 
@@ -255,27 +261,84 @@ class BehaviorDetector:
         }
 
     def analyze_nodding(self) -> Tuple[bool, float]:
-        """Analyze if student is nodding too much"""
-        if len(self.head_positions) < 10:
+        """Analyze if student is nodding too much - with stricter detection"""
+        if len(self.head_positions) < 20:  # Need more frames for reliable detection
             return False, 0.0
 
         positions = np.array(list(self.head_positions))
-
-        # Calculate vertical movement (nodding)
         y_positions = positions[:, 1]
+
+        # Filter out noise: calculate overall variance first
         y_variance = np.var(y_positions)
+        if y_variance < 20:  # Too stable, no significant movement
+            return False, 0.0
 
-        # Count significant movements
-        movements = 0
-        for i in range(1, len(y_positions)):
-            if abs(y_positions[i] - y_positions[i - 1]) > self.NOD_THRESHOLD * 100:
-                movements += 1
+        # Detect actual nodding patterns: must have clear up-down-up cycles
+        # with sufficient amplitude
+        movement_threshold = self.NOD_THRESHOLD * 100  # Convert to pixels
+        min_amplitude = self.MIN_NOD_AMPLITUDE
 
-        # Calculate frequency
+        # Track peaks and valleys to identify complete nod cycles
+        peaks = []  # Local maxima (head up)
+        valleys = []  # Local minima (head down)
+
+        # Find local extrema with sufficient amplitude
+        for i in range(2, len(y_positions) - 2):
+            # Check for local maximum (peak)
+            if (
+                y_positions[i] > y_positions[i - 1]
+                and y_positions[i] > y_positions[i + 1]
+                and y_positions[i] > y_positions[i - 2]
+                and y_positions[i] > y_positions[i + 2]
+            ):
+                peaks.append((i, y_positions[i]))
+
+            # Check for local minimum (valley)
+            if (
+                y_positions[i] < y_positions[i - 1]
+                and y_positions[i] < y_positions[i + 1]
+                and y_positions[i] < y_positions[i - 2]
+                and y_positions[i] < y_positions[i + 2]
+            ):
+                valleys.append((i, y_positions[i]))
+
+        # Count valid nod cycles: must have valley->peak->valley pattern
+        # with sufficient amplitude between peak and valley
+        nod_cycles = 0
+        if len(peaks) > 0 and len(valleys) > 0:
+            # Combine and sort by position
+            all_extrema = sorted(peaks + valleys, key=lambda x: x[0])
+
+            # Look for valley-peak-valley patterns (complete nod cycle)
+            for i in range(len(all_extrema) - 2):
+                p1, y1 = all_extrema[i]
+                p2, y2 = all_extrema[i + 1]
+                p3, y3 = all_extrema[i + 2]
+
+                # Check if pattern is valley-peak-valley or peak-valley-peak
+                # (both represent a nod cycle)
+                if (y1 < y2 > y3) or (y1 > y2 < y3):
+                    # Calculate amplitude
+                    amplitude = abs(max(y1, y2, y3) - min(y1, y2, y3))
+                    if amplitude >= min_amplitude:
+                        nod_cycles += 1
+
+        # Calculate frequency based on actual nod cycles
         if len(positions) > 0:
-            frequency = movements / (len(positions) / 30.0)  # Assuming 30 FPS
+            time_window = len(positions) / 30.0  # seconds (assuming ~30 FPS)
+            if time_window > 0:
+                frequency = nod_cycles / time_window
+            else:
+                frequency = 0.0
+        else:
+            frequency = 0.0
 
-        is_nodding_too_much = frequency > self.NOD_FREQUENCY_THRESHOLD
+        # Very strict conditions: high frequency AND multiple cycles AND sufficient variance
+        is_nodding_too_much = (
+            frequency > self.NOD_FREQUENCY_THRESHOLD
+            and nod_cycles >= 3  # Need at least 3 complete cycles
+            and y_variance > 30  # Overall movement must be significant
+        )
 
         return is_nodding_too_much, frequency
 
